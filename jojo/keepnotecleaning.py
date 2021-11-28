@@ -2,6 +2,7 @@ import json
 import pandas as pd
 import glob
 import datetime
+import re
 
 
 # Cleaning time!
@@ -13,6 +14,13 @@ def unixus_to_date(ms :int):
 def unixus_to_time(ms :int):
     """ Returns a HH:MM String representation of the time represented by the ms unix timestamp. """
     return str(datetime.datetime.fromtimestamp(ms/1000000)).split()[1][:5]
+
+def remove_urls(string :str):
+    """ Given a string, replaces any urls in the string with empty space."""
+    """ Regex from https://www.geeksforgeeks.org/python-check-url-string/"""
+    string = str(string) # this is bad design but things are going into the dataframe as objects
+    regex = r"(?i)\b((?:https?://|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:'\".,<>?«»“”‘’]))"
+    return re.sub(regex, "", string)
 
 # Getting data in
 def give_me_my_notes():
@@ -38,6 +46,13 @@ def give_me_my_notes():
 
     notes_df["timestamp"] = notes_df["userEditedTimestampUsec"]
     notes_df["body"] = notes_df["textContent"]
+
+    notes_df['body'] = notes_df['body'].apply(remove_urls)
+    notes_df = notes_df[notes_df['body'].str.strip().astype(bool)]
+
     notes_df = notes_df[["timestamp", "date", "time", "type", "body"]]
 
     return notes_df
+
+if __name__ == "__main__":
+    print(give_me_my_notes())
