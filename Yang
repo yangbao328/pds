@@ -1,1 +1,188 @@
 
+"""
+DS2500 Final Project
+Tianyang Bao 
+001467761
+"""
+'''
+In this section, I will analyze personal banking statements from July 2021 to Nov 2021
+I want to emulate traveling trace based on these records
+-most visit stores
+-potentially living circle in geographic coordinates in Boston Area
+Ultimately to indicate that losing a credit card may result in larger potention data leakage 
+that may become uncontrolable.
+'''
+
+import pandas as pd
+import fileinput
+import glob
+
+#Feed in 5 months Bank Statements
+#in this case, I'm using a BOA credit card
+#Retrieved these statements from BOA online banking
+
+#%% Segerating this section as only need to concatenate all files once
+#read names of file in the glob list
+file_list = glob.glob("*.csv")
+#create a new csv file for output
+with open('bkfiles.csv', 'w') as file:
+    #open each file and read lines
+    input_lines = fileinput.input(file_list)
+    #write lines into the output csv
+    file.writelines(input_lines)
+#%%
+
+import pandas as pd
+import fileinput
+import glob
+
+import datetime 
+
+#read the merged bank statements
+bk_tr = pd.read_csv('train_bk_cat.csv')
+
+bk_tr['sent_len'] = bk_tr.Payee.apply(len)
+bk_tr.to_csv("TRAIN_bk_cat.csv", encoding='utf-8', index=False)
+
+  
+#%%Data cleaning work especiall adding categor column
+import datetime 
+
+#read the merged bank statements
+bk = pd.read_csv('bkfiles.csv')
+# check column names
+bk.columns.values 
+
+'''
+array(['Posted Date', 'Reference Number', 'Payee', 'Address', 'Amount'], dtype=object)
+I will focus on cleaning Payee and Amount the most to build up a classification model predicting spending categorization
+'''
+#ditching reference number first
+bk = bk[['Posted Date', 'Payee', 'Address', 'Amount']]
+
+bk['Date'] = pd.to_datetime(bk['Posted Date'], format ='%m/%d/%Y',errors='coerce')
+
+bk = bk[['Date', 'Payee', 'Address', 'Amount']]
+#get rid of 12 header rows
+bk = bk.loc[bk.Date.notnull()]
+
+
+#generate a new column of weekday label
+day_name= ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday','Sunday']
+#saved day of week in numeric format for using as a parameter of model
+bk['Weekday'] = bk.Date.dt.dayofweek
+
+#Adjust Address into state attribute
+bk.Address = bk.Address.apply(lambda x: str(x).strip()[-3:]) 
+bk['sent_len'] = bk.Payee.apply(len)
+#output portion of cleaned data as train set
+bk.to_csv("TRAIN_bk_cat.csv", encoding='utf-8', index=False)
+
+#%%Category-Prediction Supervised Model
+
+#predicting spending categories
+#after researching on Text-involved supervised machine learning
+#I will use TF-IDF(Term Frequency Inverse Document Frequency) Vectorizer from scikit-learn to 
+#firstly vectorise Payee information as numeric symbols that can be processed by the module
+#secondly include other numeric variables-date, sent_len, amount to sharpen the model 
+#to predict 'category'
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.feature_extraction.text import TfidfVectorizer,CountVectorizer
+from sklearn.preprocessing import LabelEncoder
+from sklearn.ensemble import RandomForestClassifier
+
+#reload the file with category
+bk_cat = pd.read_csv('TRAIN_bk_cat.csv')
+
+bk_cat.describe()
+
+selected_columns = bk_cat[['Weekday']]
+
+selected_columns.hist(figsize=(20,20),bins=20,xlabelsize=20,ylabelsize=20)
+#target - category
+#predictor - Payee, Weekday, amount, and sent_len
+
+predictor = bk_cat.iloc[:,bk_cat.columns!='Category']
+
+target = bk_cat.iloc[:,bk_cat.columns == 'Category']
+
+from sklearn.model_selection import train_test_split
+
+###focusing on Payee only in this attempt below
+tfidf=TfidfVectorizer()
+x_train=tfidf.fit_transform(bk_cat.Payee)
+# we need to also encode the "target" as something the algorithm can handle (numbers)
+le=LabelEncoder()
+y_train=le.fit_transform(bk_cat.Category)
+# here's the actual ML algorithm
+classifier=RandomForestClassifier(n_jobs=-1)
+# train the model on your historical data
+classifier.fit(x_train.todense(), y_train)
+
+# here's our "new" data that we want to get categories for, we need to treat it the same way
+txt_predict=['Amazon', 'Campus Coffee and Tea', 'Capital Grill']
+x_predict=tfidf.transform(txt_predict)
+
+predicted=classifier.predict(x_predict.todense())
+# predict() output is just a bunch of numbers, we need to turn it back into words
+actual_answers=le.inverse_transform(predicted)
+print(actual_answers)
+
+#generate report of spending annually
+
+#having budget of spending 2800 monthly
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+def main():
+    #files = ['July2021_3795.csv']
+    pass
+if __name__ == '__main__':
+    main()
+    
+
+
+'''
+import datetime
+import dateutil
+bk['Posted Date'] = bk['Posted Date'].apply(lambda x: datetime.datetime.strptime(x,'%m/%d/%Y'))
+bk['Posted Date'] = bk['Posted Date'].apply(dateutil.parser.parse)
+'''
+
+
+
+
+
+    
