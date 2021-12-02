@@ -91,13 +91,9 @@ def plot_abduls_top_songs_and_artists():
 
     # Gets dataframe from three json files gotten from Spotify
     df0 = convert_json_to_df("StreamingHistory3.json")
-    df1 = convert_json_to_df("StreamingHistory4.json")
-    df2 = convert_json_to_df("StreamingHistory5.json")
 
     # Fills the dictionaries
     fill_dicts(df0, songs_dict, artists_dict)
-    fill_dicts(df1, songs_dict, artists_dict)
-    fill_dicts(df2, songs_dict, artists_dict)
 
     # Get the dictionaries sorted by value
     songs_dict = dict(sort_dict(songs_dict))
@@ -115,3 +111,4 @@ def plot_abduls_top_songs_and_artists():
 
 if __name__ == '__main__':
     plot_benjis_top_songs_and_artists()
+    plot_abduls_top_songs_and_artists()
