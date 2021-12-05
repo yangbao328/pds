@@ -53,3 +53,7 @@ def give_me_my_tweets():
     tweet_df = tweet_df[tweet_df['body'].str.strip().astype(bool)]
 
     return tweet_df
+
+if __name__ == "__main__":
+    print(give_me_my_tweets())
+    print(len(give_me_my_tweets()))

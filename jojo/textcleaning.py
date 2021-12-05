@@ -56,6 +56,4 @@ def give_me_my_texts():
     return texts
 
 if __name__ == "__main__":
-    print(len(give_me_my_texts()))
-    for line in give_me_my_texts()['body']:
-        print(line)
+    print(give_me_my_texts())

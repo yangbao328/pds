@@ -56,3 +56,4 @@ def give_me_my_notes():
 
 if __name__ == "__main__":
     print(give_me_my_notes())
+    print(len(give_me_my_notes()))
