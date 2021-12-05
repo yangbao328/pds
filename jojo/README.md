@@ -1,4 +1,4 @@
-#jojobot alpha
+# jojobot alpha
 ### an attempt at shortform text generation using OpenAI's GPT-2
 
 ## Directory Contents
