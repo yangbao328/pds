@@ -22,20 +22,19 @@ import glob
 
 #%% Segerating this section as only need to concatenate all files once
 #read names of file in the glob list
-file_list = glob.glob("*.csv")
-#create a new csv file for output
-with open('bkfiles.csv', 'w') as file:
-    #open each file and read lines
-    input_lines = fileinput.input(file_list)
-    #write lines into the output csv
-    file.writelines(input_lines)
+def compile_stats(name):
+    
+    file_list = glob.glob("*.csv")
+    #create a new csv file for output
+    with open('bkfiles.csv', 'w') as file:
+        #open each file and read lines
+        input_lines = fileinput.input(file_list)
+        #write lines into the output csv
+        file.writelines(input_lines)
+    return name     
+#%%
 
 
-import pandas as pd
-import fileinput
-import glob
-
-import datetime 
 
 #read the merged bank statements
 bk_tr = pd.read_csv('train_bk_cat.csv')
@@ -51,186 +50,129 @@ import fileinput
 import glob
 import seaborn as sns
 
+''' array(['Posted Date', 'Reference Number', 'Payee', 'Address', 'Amount'], dtype=object)
+    I will focus on cleaning Payee and Amount the most to build up a classification model predicting spending categorization'''
+def cleaning_stat(name,output): 
+    
+    #read the merged bank statements
+    bk = pd.read_csv('bkfiles.csv')
+    #trim the statement down from removing Address and Reference ID
+    bk = bk[['Posted Date', 'Payee', 'Amount']]
+    #remove all header lines from 12 statements
+    bk = bk.drop(bk['Amount'].loc[bk['Amount']=='Amount'].index)
+    #clean dollar amounts for digit delimiters
+    bk['Amount'] = bk['Amount'].str.replace(',', '').astype(float)
 
-#read the merged bank statements
-bk = pd.read_csv('bkfiles.csv')
+    bk['sent_len'] = bk.Payee.apply(len)
 
-bk = bk[['Posted Date', 'Payee', 'Amount']]
-# check column names
-bk = bk.drop(bk['Amount'].loc[bk['Amount']=='Amount'].index)
+    
 
-bk['Amount'] = bk['Amount'].str.replace(',', '').astype(float)
-
-sns.distplot(bk['Amount'], bins=30)
-
-'''
-array(['Posted Date', 'Reference Number', 'Payee', 'Address', 'Amount'], dtype=object)
-I will focus on cleaning Payee and Amount the most to build up a classification model predicting spending categorization
-'''
 #ditching reference number first
 
 
-bk['Date'] = pd.to_datetime(bk['Posted Date'], format ='%m/%d/%Y',errors='coerce')
+    bk['Date'] = pd.to_datetime(bk['Posted Date'], format ='%m/%d/%Y',errors='coerce')
 
-bk = bk[['Date', 'Payee', 'Amount']]
-#get rid of 12 header rows
-bk = bk.loc[bk.Date.notnull()]
-
-
-#generate a new column of weekday label
-#saved day of week in numeric format for using as a parameter of model
-bk['Weekday'] = bk.Date.dt.dayofweek
-
-#Purchasing day frequency
+    bk = bk[['Date', 'Payee', 'Amount']]
+    #get rid of 12 header rows
+    bk = bk.loc[bk.Date.notnull()]
 
 
-#Adjust Address into state attribute
-#bk.Address = bk.Address.apply(lambda x: str(x).strip()[-3:]) 
-bk['sent_len'] = bk.Payee.apply(len)
-#output portion of cleaned data as train set
-bk.to_csv("TRAIN_bk.csv", encoding='utf-8', index=False)
+    #generate a new column of weekday label
+    #saved day of week in numeric format for using as a parameter of model
+    bk['Weekday'] = bk.Date.dt.dayofweek
+    bk = bk.drop('Date',axis=1)
+
+    #create payee length as another feature for prediction model
+    bk['sent_len'] = bk.Payee.apply(len)
+    #output portion of cleaned data as train set
+    bk.to_csv(output, encoding='utf-8', index=False)
+    return output
+
+def visual_report(output):
+    
+    bk = pd.read_csv('bkfiles.csv')
+    
+    #Purchasing day frequency
+    sns.distplot(bk['Amount'], bins=30)
+
+    sns.countplot(x='Weekday', data=bk)
+    ax = ct.plot(kind='bar', stacked=True, rot=0)
+    ax.legend(title='mark', bbox_to_anchor=(1, 1.02), loc='upper left')
 
 
+    selected_columns = bk[['Weekday']]
 
-
+    selected_columns.hist(figsize=(20,20),bins=20,xlabelsize=20,ylabelsize=20)
 #%%
-import datetime 
-import pandas as pd
-import fileinput
-import glob
-import seaborn as sns
-bk_cat = pd.read_csv('TRAIN_bk_cat.csv')
-sns.distplot(bk_cat['Amount'], bins=30)
 
 from sklearn.feature_extraction.text import TfidfVectorizer
 
-tfidf_vec = TfidfVectorizer()
-tfidf_dense = tfidf_vec.fit_transform(bk_cat['Payee']).todense()
-new_cols = tfidf_vec.get_feature_names()
+#    bk = pd.read_csv('bkfiles.csv')
+def tf_model(output):
+    bk_cat = pd.read_csv('TRAIN_bk_cat.csv')
+    tfidf_vec = TfidfVectorizer()
+    tfidf_dense = tfidf_vec.fit_transform(bk_cat['Payee']).todense()
+    new_cols = tfidf_vec.get_feature_names()
 
-bk_cat = bk_cat.drop('Payee',axis=1)
-bk_cat = bk_cat.drop('Date',axis=1)
+#bk_cat = bk_cat.drop('Payee',axis=1)
+#bk_cat = bk_cat.drop('Date',axis=1)
 
-bk_cat = bk_cat.drop('Address',axis=1)
-bk_cat = bk_cat.join(pd.DataFrame(tfidf_dense, columns=new_cols))
-bk_cat = bk_cat[pd.notnull(bk_cat.Category)]
-sns.countplot(x='Weekday', data=bk_cat)
-ct = pd.crosstab(bk_cat['Weekday'],bk_cat['Category'])
-ax = ct.plot(kind='bar', stacked=True, rot=0)
-ax.legend(title='mark', bbox_to_anchor=(1, 1.02), loc='upper left')
+#bk_cat = bk_cat.drop('Address',axis=1)
+    bk_cat = bk_cat.join(pd.DataFrame(tfidf_dense, columns=new_cols))
+    bk_cat = bk_cat[pd.notnull(bk_cat.Category)]
+    
+    df_predictor= bk_cat.iloc[:, bk_cat.columns != 'Category']
+    target= bk_cat.iloc[:, bk_cat.columns == 'Category']
+    
+    #Let us now split the dataset into train & test
+    from sklearn.model_selection import train_test_split
+    X_train,X_test, y_train, y_test = train_test_split(df_predictor, target, test_size = 0.30, random_state=0)
+    print("x_train ",X_train.shape)
+    print("x_test ",X_test.shape)
+    print("y_train ",y_train.shape)
+    print("y_test ",y_test.shape)
 
+    # Standarize features
+    from sklearn.preprocessing import StandardScaler
+    scaler = StandardScaler()
+    
+    X_train_scaled = pd.DataFrame(scaler.fit_transform(X_train))
+    X_test_scaled = pd.DataFrame(scaler.transform(X_test))
+    
+    X_train_scaled.columns = X_train.columns.values
+    X_test_scaled.columns = X_test.columns.values
+    X_train_scaled.index = X_train.index.values
+    X_test_scaled.index = X_test.index.values 
+    
+    X_train = X_train_scaled
+    X_test = X_test_scaled
+    X_train_scaled.describe()
 
-#%%
-df_predictor= bk_cat.iloc[:, bk_cat.columns != 'Category']
-target= bk_cat.iloc[:, bk_cat.columns == 'Category']
+    from sklearn.ensemble import RandomForestClassifier
+    from sklearn.preprocessing import LabelEncoder
+    
+    classifier = RandomForestClassifier(random_state = 0, n_estimators = 100,\
+                                        criterion = 'entropy', max_leaf_nodes= 20,oob_score = True, n_jobs = -1, class_weight='balanced')
+                                    
+    # fit the model
+    model_RF = classifier.fit(X_train_scaled.dropna(), y_train.dropna())
+    y_pred_RF = model_RF.predict(X_test_scaled)
 
-#Let us now split the dataset into train & test
-from sklearn.model_selection import train_test_split
-X_train,X_test, y_train, y_test = train_test_split(df_predictor, target, test_size = 0.30, random_state=0)
-print("x_train ",X_train.shape)
-print("x_test ",X_test.shape)
-print("y_train ",y_train.shape)
-print("y_test ",y_test.shape)
+    # Classification report
+    from sklearn.metrics import classification_report
+    print(classification_report(y_test, y_pred_RF))
 
-# Standarize features
-from sklearn.preprocessing import StandardScaler
-scaler = StandardScaler()
+    return y_pred_RF
 
-X_train_scaled = pd.DataFrame(scaler.fit_transform(X_train))
-X_test_scaled = pd.DataFrame(scaler.transform(X_test))
+def main():
+    name = 'bkfiles.csv'
+    output = 'bk_cat.csv'
+    compile_stats(name)
+    cleaning_stat(name,output)
+    visual_report(output)
+    tf_model(output)
 
-X_train_scaled.columns = X_train.columns.values
-X_test_scaled.columns = X_test.columns.values
-X_train_scaled.index = X_train.index.values
-X_test_scaled.index = X_test.index.values 
-
-X_train = X_train_scaled
-X_test = X_test_scaled
-X_train_scaled.describe()
-
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.preprocessing import LabelEncoder
-
-classifier = RandomForestClassifier(random_state = 0, n_estimators = 100,\
-                                    criterion = 'entropy', max_leaf_nodes= 20,oob_score = True, n_jobs = -1, class_weight='balanced')
-                                
-# fit the model
-model_RF = classifier.fit(X_train_scaled.dropna(), y_train.dropna())
-y_pred_RF = model_RF.predict(X_test_scaled)
-
-# Classification report
-from sklearn.metrics import classification_report
-print(classification_report(y_test, y_pred_RF))
-#%%
-from sklearn import metrics
-import matplotlib.pyplot as plt
-y_pred_proba = model_RF.predict_proba(X_test_scaled)[:,1] 
-fpr, tpr, t = metrics.roc_curve(y_test,  y_pred_proba) 
-auc = metrics.roc_auc_score(y_test, y_pred_proba)
-plt.plot(fpr,tpr,label="AUC="+str(auc))
-plt.legend()
-plt.show()
-
-#Evaluate (Note that these default metrics provide values for y=1)
-evaluation_scores = pd.Series({'Model': " Random Forest Classifier ",
-                 'ROC AUC Score' : metrics.roc_auc_score(y_test, y_pred_proba),
-                 'Precision Score': metrics.precision_score(y_test, y_pred_RF),
-                 'Recall Score': metrics.recall_score(y_test, y_pred_RF),
-                 'Accuracy Score': metrics.accuracy_score(y_test, y_pred_RF)})
-
-print(evaluation_scores)
-
-#%%Category-Prediction Supervised Model
-
-#predicting spending categories
-#after researching on Text-involved supervised machine learning
-#I will use TF-IDF(Term Frequency Inverse Document Frequency) Vectorizer from scikit-learn to 
-#firstly vectorise Payee information as numeric symbols that can be processed by the module
-#secondly include other numeric variables-date, sent_len, amount to sharpen the model 
-#to predict 'category'
-import matplotlib.pyplot as plt
-import seaborn as sns
-from sklearn.feature_extraction.text import TfidfVectorizer,CountVectorizer
-from sklearn.preprocessing import LabelEncoder
-from sklearn.ensemble import RandomForestClassifier
-
-#reload the file with category
-
-bk_cat.describe()
-
-selected_columns = bk_cat[['Weekday']]
-
-selected_columns.hist(figsize=(20,20),bins=20,xlabelsize=20,ylabelsize=20)
-#target - category
-#predictor - Payee, Weekday, amount, and sent_len
-#%%
-bk_catt = pd.read_csv('TRAIN_bk_cat.csv')
-predictor = bk_catt.iloc[:,bk_catt.columns!='Category']
-
-target = bk_catt.iloc[:,bk_catt.columns == 'Category']
-
-from sklearn.model_selection import train_test_split
-
-###focusing on Payee only in this attempt below
-tfidf=TfidfVectorizer()
-x_train=tfidf.fit_transform(bk_catt.Payee)
-# we need to also encode the "target" as something the algorithm can handle (numbers)
-le=LabelEncoder()
-y_train=le.fit_transform(bk_catt.Category.astype(str))
-# here's the actual ML algorithm
-classifier=RandomForestClassifier(n_jobs=-1)
-# train the model on your historical data
-classifier.fit(x_train.todense(), y_train)
-
-# here's our "new" data that we want to get categories for, we need to treat it the same way
-txt_predict=['AMZN', 'Campus Coffee and Tea', 'Capital Grill']
-x_predict=tfidf.transform(txt_predict)
-
-predicted=classifier.predict(x_predict.todense())
-# predict() output is just a bunch of numbers, we need to turn it back into words
-actual_answers=le.inverse_transform(predicted)
-print(actual_answers)
-
-
+if __name__ == '__main__':
+    main()
 
    
