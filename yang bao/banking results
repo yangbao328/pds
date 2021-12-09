@@ -1,0 +1,8 @@
+This reporting tool outputs a list of spending categories, including cloud(storage), cosmetics, dining, education, 
+electronic, entertainment, garment, grocery, late(fee), meal, necessity, online, refreshment, rent, repayment, 
+snack, tip, and transportation with currently 70% accuracy. 
+
+From there, it requires mannual investigation to identify false predictiion and will learn from correction. 
+
+Besides, it also provides visuals of weekday spending, spending category distribution in weeks, and amount spending distribution
+for user to recognize over-spent area for budgeting purposes. 
