@@ -60,20 +60,14 @@ def cleaning_stat(name,output):
     bk = bk[['Posted Date', 'Payee', 'Amount']]
     #remove all header lines from 12 statements
     bk = bk.drop(bk['Amount'].loc[bk['Amount']=='Amount'].index)
+    
     #clean dollar amounts for digit delimiters
     bk['Amount'] = bk['Amount'].str.replace(',', '').astype(float)
-
     bk['sent_len'] = bk.Payee.apply(len)
-
-    
-
-#ditching reference number first
-
-
     bk['Date'] = pd.to_datetime(bk['Posted Date'], format ='%m/%d/%Y',errors='coerce')
 
     bk = bk[['Date', 'Payee', 'Amount']]
-    #get rid of 12 header rows
+    #get rid of 12 header rows where Date==null
     bk = bk.loc[bk.Date.notnull()]
 
 
@@ -90,34 +84,24 @@ def cleaning_stat(name,output):
 
 def visual_report(output):
     
-    bk = pd.read_csv('bkfiles.csv')
+    bk = pd.read_csv(output)
     
-    #Purchasing day frequency
+    #Purchasing amount in day frequency
     sns.distplot(bk['Amount'], bins=30)
-
+    
+    #Purchasing pattern by weekdays
     sns.countplot(x='Weekday', data=bk)
     ax = ct.plot(kind='bar', stacked=True, rot=0)
     ax.legend(title='mark', bbox_to_anchor=(1, 1.02), loc='upper left')
 
-
-    selected_columns = bk[['Weekday']]
-
-    selected_columns.hist(figsize=(20,20),bins=20,xlabelsize=20,ylabelsize=20)
-#%%
-
 from sklearn.feature_extraction.text import TfidfVectorizer
 
-#    bk = pd.read_csv('bkfiles.csv')
 def tf_model(output):
-    bk_cat = pd.read_csv('TRAIN_bk_cat.csv')
+    bk_cat = pd.read_csv(output)
     tfidf_vec = TfidfVectorizer()
     tfidf_dense = tfidf_vec.fit_transform(bk_cat['Payee']).todense()
     new_cols = tfidf_vec.get_feature_names()
 
-#bk_cat = bk_cat.drop('Payee',axis=1)
-#bk_cat = bk_cat.drop('Date',axis=1)
-
-#bk_cat = bk_cat.drop('Address',axis=1)
     bk_cat = bk_cat.join(pd.DataFrame(tfidf_dense, columns=new_cols))
     bk_cat = bk_cat[pd.notnull(bk_cat.Category)]
     
